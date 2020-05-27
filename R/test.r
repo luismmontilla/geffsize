@@ -17,6 +17,7 @@ batch.cohen <- function(formula, control, data) {
 
   fctrs <- colnames(df)
   fctrs <- fctrs[fctrs != formula[[2]] & fctrs != ctrl.pst ]
+  #fctrs <- fctrs[fctrs != formula[[2]]]
 
   if(length(fctrs) > 0){
     fctrs.list <- lapply(as.list(paste("df","$",fctrs, sep="")),
@@ -26,20 +27,38 @@ batch.cohen <- function(formula, control, data) {
 
     #drop extra columns
     subdf <- lapply(subdf,
-                    function(x) x[(names(x) %in% c(paste(formula[[2]]),
-                                                          ctrl.pst))])
+                    function(x) x[(names(x) %in% c(paste(formula[[2]]), ctrl.pst))]
+                    )
 
+    subdf <- lapply(subdf,
+                     function(x) {
+                       microdf <- split(x, x[ctrl.pst], drop = TRUE)
+                       #remerge dfs
+                       microdf <- lapply(microdf,
+                                         function(x) {
+                                           if (unique(x[,2]) != control) {
+                                             rbind(x, microdf[[control]])
+                                             }
+                                         }
+                                         )
+                       microdf <- microdf[lengths(microdf) != 0]
 
-    ctrl.lvls <- unique(eval(parse(text=paste("df","$",ctrl.pst, sep=""))))
-
-    if(length(ctrl.lvls) > 2){
-
-      ctrl.lvls <- ctrl.lvls[ctrl.lvls != control]
-
-      lapply(subdf,
-             function(x) cohen.d(x[x[2] == ctrl.lvls[i],1], x[x[2] == control,1]))
+                       lapply(microdf,
+                              function(x) {cohen.d(d = ttt[,1],
+                                                   f = droplevels(ttt[,2]))}
+                              #set proper order of levels
+                              )
+                       }
+                     )
 
     } else {
+
+      es.list <- lapply(subdf,
+                        cohen.d(x[x[2] != control,1],
+                                x[x[2] == control,1])
+                        )
+
+      #build df
 
     }
 
