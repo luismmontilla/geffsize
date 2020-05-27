@@ -1,17 +1,26 @@
-#library(effsize)
+library(effsize)
 
 rawdata <- read.csv("cors_raw.csv")
 
 formula = cat_tissue~treatment*tissue*time
 data = rawdata
-control = "Control"
+ref = "Control"
 
 
-batch.cohen <- function(formula, control, data) {
+batch.cohen <- function(formula, ref, data,
+                        pooled=TRUE,
+                        paired=FALSE,
+                        na.rm=FALSE,
+                        mu=0,
+                        hedges.correction=FALSE,
+                        conf.level=0.95,
+                        noncentral=FALSE,
+                        within=TRUE,
+                        subject=NA, ...) {
 
   df <- model.frame(formula, data)
 
-  ctrl.pst <- colSums(data == paste(control))
+  ctrl.pst <- colSums(data == paste(ref))
   ctrl.pst <- names(ctrl.pst[ctrl.pst>0])
 
 
@@ -33,29 +42,43 @@ batch.cohen <- function(formula, control, data) {
     subdf <- lapply(subdf,
                      function(x) {
                        microdf <- split(x, x[ctrl.pst], drop = TRUE)
-                       #remerge dfs
+                       #remerge dfs:
                        microdf <- lapply(microdf,
                                          function(x) {
-                                           if (unique(x[,2]) != control) {
-                                             rbind(x, microdf[[control]])
+                                           if (unique(x[,2]) != ref) {
+                                             rbind(x, microdf[[ref]])
                                              }
                                          }
                                          )
+                       #drop null elements:
                        microdf <- microdf[lengths(microdf) != 0]
 
                        lapply(microdf,
-                              function(x) {cohen.d(d = ttt[,1],
-                                                   f = droplevels(ttt[,2]))}
-                              #set proper order of levels
-                              )
+                              function(x) {
+                                treatment = x[x[,2] != ref,1]
+                                  control = x[x[,2] == ref,1]
+                                cohen.d(treatment,
+                                        control,
+                                        pooled,
+                                        paired,
+                                        na.rm,
+                                        mu,
+                                        hedges.correction,
+                                        conf.level,
+                                        noncentral,
+                                        within,
+                                        subject
+                                        )
+                              })
+
                        }
                      )
 
     } else {
 
       es.list <- lapply(subdf,
-                        cohen.d(x[x[2] != control,1],
-                                x[x[2] == control,1])
+                        cohen.d(x[x[2] != ref,1],
+                                x[x[2] == ref,1])
                         )
 
       #build df
@@ -71,10 +94,5 @@ batch.cohen <- function(formula, control, data) {
 
 }
 
-combn(unique(c(data$tissue,data$treatment)), 2)
 
-model.frame(cat_tissue~treatment*tissue*time, rawdata)
-
-for(i in 1:length(z)) {
-  w <- droplevels(df[(lvl == z[[i]][1] | lvl == z[[i]][2]),])
 }
