@@ -5,6 +5,15 @@ rawdata <- read.csv("cors_raw.csv")
 formula = cat_tissue~treatment*tissue*time
 data = rawdata
 ref = "Control"
+pooled=TRUE
+paired=FALSE
+na.rm=FALSE
+mu=0
+hedges.correction=FALSE
+conf.level=0.95
+noncentral=FALSE
+within=TRUE
+subject=NA
 
 
 batch.cohen <- function(formula, ref, data,
@@ -53,10 +62,11 @@ batch.cohen <- function(formula, ref, data,
                        #drop null elements:
                        microdf <- microdf[lengths(microdf) != 0]
 
-                       lapply(microdf,
+                       microdf <- lapply(microdf,
                               function(x) {
                                 treatment = x[x[,2] != ref,1]
                                   control = x[x[,2] == ref,1]
+
                                 cohen.d(treatment,
                                         control,
                                         pooled,
@@ -69,6 +79,16 @@ batch.cohen <- function(formula, ref, data,
                                         within,
                                         subject
                                         )
+                              })
+
+                       lapply(microdf,
+                              function(x) {
+                                data.frame(
+                                  #x$method,
+                                  Estimate = x$estimate,
+                                  Lower.CI = x$conf.int[1],
+                                  Upper.CI = x$conf.int[2]
+                                )
                               })
 
                        }
