@@ -81,18 +81,33 @@ batch.cohen <- function(formula, ref, data,
                                         )
                               })
 
-                       lapply(microdf,
+                       microdf <- lapply(microdf,
                               function(x) {
                                 data.frame(
-                                  #x$method,
                                   Estimate = x$estimate,
                                   Lower.CI = x$conf.int[1],
                                   Upper.CI = x$conf.int[2]
                                 )
                               })
 
+                       microdf <- as.data.frame(matrix(unlist(microdf),
+                                                  nrow = length(microdf),
+                                                  byrow = TRUE,
+                                                  dimnames = list(names(microdf),
+                                                    names(microdf[[1]]))))
+
+
                        }
                      )
+
+    lapply(subdf,
+           function(x) {
+             #x$test <- names(subdf)
+             colnames(x)[3] <- ctrl.pst
+           })
+
+
+
 
     } else {
 
