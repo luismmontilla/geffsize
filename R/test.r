@@ -9,7 +9,7 @@ pooled=TRUE
 paired=FALSE
 na.rm=FALSE
 mu=0
-hedges.correction=FALSE
+hedges.correction=TRUE
 conf.level=0.95
 noncentral=FALSE
 within=TRUE
@@ -100,11 +100,23 @@ batch.cohen <- function(formula, ref, data,
                        }
                      )
 
-    lapply(subdf,
+    xx <- lapply(subdf,
            function(x) {
-             #x$test <- names(subdf)
-             colnames(x)[3] <- ctrl.pst
-           })
+             z <- tibble::rownames_to_column(x, var = paste(ctrl.pst))
+             #z <- data.frame(x, y = row.names(x))
+
+             #colnames(z$y) <- "test"
+             }
+           )
+
+    yy <- xx %>%
+      as_tibble(.name_repair = make.names) %>%
+      pivot_longer(everything(),
+                   names_to = "variables",
+                   values_to = "values") %>%
+      as.data.frame() %>%
+      separate(col="variables", into = paste(fctrs)) %>%
+      setNames(gsub("values", "", names(.)))
 
 
 
