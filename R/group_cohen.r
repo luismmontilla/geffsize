@@ -28,7 +28,7 @@ group_cohen <- function(f,
 
       dfr <- tidyr::unite(data = dfr,
                            col = "merged",
-                           fctrs)
+                           all_of(fctrs))
 
       subdf <- split(dfr, dfr$merged)
 
