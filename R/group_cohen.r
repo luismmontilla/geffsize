@@ -1,6 +1,6 @@
-group_cohen <- function(formula,
+group_cohen <- function(f,
                         ref,
-                        data,
+                        d,
                         pooled = TRUE,
                         paired = FALSE,
                         na.rm = FALSE,
@@ -11,99 +11,101 @@ group_cohen <- function(formula,
                         within = TRUE,
                         subject = NA, ...) {
 
-  df <- model.frame(formula, data)
+  dfr <- model.frame(f, d)
 
   #define the factor containing the reference
-  ctrl.pst <- colSums(data == paste(ref))
+  ctrl.pst <- colSums(d == paste(ref))
   ctrl.pst <- names(ctrl.pst[ctrl.pst>0])
 
   if(length(ctrl.pst) == 0) {
     stop("Name of the control is not contained in the dataset")
   } else {
     #define additional factors that do not contain the reference
-    fctrs <- colnames(df)
-    fctrs <- fctrs[fctrs != formula[[2]] & fctrs != ctrl.pst]
+    fctrs <- colnames(dfr)
+    fctrs <- fctrs[fctrs != f[[2]] & fctrs != ctrl.pst]
 
     if(length(fctrs) > 0){
 
-    fctrs.list <- lapply(as.list(paste("df","$",fctrs, sep="")),
-                         function(x) parse(text=x)[[1]])
+      dfr <- tidyr::unite(data = dfr,
+                           col = "merged",
+                           fctrs)
 
-    subdf <- split(df, lapply(fctrs.list, eval))
+      subdf <- split(dfr, dfr$merged)
 
-    #drop extra columns
-    subdf <- lapply(subdf,
-                    function(x) x[(names(x) %in% c(paste(formula[[2]]), ctrl.pst))]
-    )
 
-    subdf <- lapply(subdf,
-                    function(x) {
-                      microdf <- split(x, x[ctrl.pst], drop = TRUE)
-                      #remerge dfs:
-                      microdf <- lapply(microdf,
-                                        function(x) {
-                                          if (unique(x[,2]) != ref) {
-                                            rbind(x, microdf[[ref]])
+      #drop extra columns
+      subdf <- lapply(subdf,
+                      function(x) x[(names(x) %in% c(paste(f[[2]]), ctrl.pst))]
+      )
+
+      subdf <- lapply(subdf,
+                      function(x) {
+                        microdf <- split(x, x[ctrl.pst], drop = TRUE)
+                        #remerge dfs:
+                        microdf <- lapply(microdf,
+                                          function(x) {
+                                            if (unique(x[,2]) != ref) {
+                                              rbind(x, microdf[[ref]])
+                                            }
                                           }
-                                        }
-                      )
-                      #drop null elements:
-                      microdf <- microdf[lengths(microdf) != 0]
+                        )
+                        #drop null elements:
+                        microdf <- microdf[lengths(microdf) != 0]
 
-                      microdf <- lapply(microdf,
-                                        function(x) {
-                                          treatment = x[x[,2] != ref,1]
-                                          control = x[x[,2] == ref,1]
+                        microdf <- lapply(microdf,
+                                          function(x) {
+                                            treatment = x[x[,2] != ref,1]
+                                            control = x[x[,2] == ref,1]
 
-                                          cohen.d(treatment,
-                                                  control,
-                                                  pooled,
-                                                  paired,
-                                                  na.rm,
-                                                  mu,
-                                                  hedges.correction,
-                                                  conf.level,
-                                                  noncentral,
-                                                  within,
-                                                  subject
-                                          )
-                                        })
+                                            effsize::cohen.d(treatment,
+                                                    control,
+                                                    pooled,
+                                                    paired,
+                                                    na.rm,
+                                                    mu,
+                                                    hedges.correction,
+                                                    conf.level,
+                                                    noncentral,
+                                                    within,
+                                                    subject
+                                            )
+                                          })
 
-                      microdf <- lapply(microdf,
-                                        function(x) {
-                                          data.frame(
-                                            Estimate = x$estimate,
-                                            Lower.CI = x$conf.int[1],
-                                            Upper.CI = x$conf.int[2]
-                                          )
-                                        })
+                        microdf <- lapply(microdf,
+                                          function(x) {
+                                            data.frame(
+                                              Estimate = x$estimate,
+                                              Lower.CI = x$conf.int[1],
+                                              Upper.CI = x$conf.int[2]
+                                            )
+                                          })
 
-                      microdf <- as.data.frame(matrix(unlist(microdf),
-                                                      nrow = length(microdf),
-                                                      byrow = TRUE,
-                                                      dimnames = list(names(microdf),
-                                                                      names(microdf[[1]]))))
+                        microdf <- as.data.frame(matrix(unlist(microdf),
+                                                        nrow = length(microdf),
+                                                        byrow = TRUE,
+                                                        dimnames = list(names(microdf),
+                                                                        names(microdf[[1]]))))
 
 
-                    }
-    )
+                      }
+      )
 
-    subdf <- lapply(subdf,
-                 function(x) {
-                   z <- tibble::rownames_to_column(x, var = paste(ctrl.pst))
-                 }
-    )
+      subdf <- lapply(subdf,
+                      function(x) {
+                        z <- tibble::rownames_to_column(x, var = paste(ctrl.pst))
+                      }
+      )
 
-    final_es <- subdf %>%
-      as_tibble(.name_repair = make.names) %>%
-      pivot_longer(everything(),
-                   names_to = "variables",
-                   values_to = "values") %>%
-      as.data.frame() %>%
-      tidyr::separate(col="variables", into = paste(fctrs)) %>%
-      setNames(gsub("values", "", names(.)))
+      final_es <- subdf %>%
+        tibble::as_tibble(.name_repair = make.names) %>%
+        tidyr::pivot_longer(everything(),
+                     names_to = "variables",
+                     values_to = "values") %>%
+        as.data.frame() %>%
+        tidyr::separate(col="variables", into = paste(fctrs)) %>%
+        setNames(gsub("values", "", names(.)))
 
-    final_es
+      final_es
 
     } else {
 
@@ -125,7 +127,7 @@ group_cohen <- function(formula,
                           treatment = x[x[,2] != ref,1]
                           control = x[x[,2] == ref,1]
 
-                          cohen.d(treatment,
+                          effsize::cohen.d(treatment,
                                   control,
                                   pooled,
                                   paired,
@@ -161,5 +163,5 @@ group_cohen <- function(formula,
 
 
 
-    }
   }
+}
